@@ -210,10 +210,13 @@ DWORD pipe9x_create(
 	{
 		DWORD error = GetLastError();
 		
-		pipe9x_write_close(pwh);
-		pipe9x_read_close(prh);
-		
-		return error;
+		if(error != ERROR_IO_PENDING)
+		{
+			pipe9x_write_close(pwh);
+			pipe9x_read_close(prh);
+			
+			return error;
+		}
 	}
 	
 	/* Make a connection to the pipe to serve as the write end. */

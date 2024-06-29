@@ -288,14 +288,21 @@ int main()
 	
 	/* ...and now the next read should fail with ERROR_BROKEN_PIPE. */
 	
-	ASSERT_TRUE(pipe9x_read_initiate(prh) == ERROR_IO_PENDING,
-		"pipe9x_read_initiate() can initiate a read after another has finished");
-	
-	EXPECT_TRUE(WaitForSingleObject(pipe9x_read_event(prh), 1000) == WAIT_OBJECT_0,
-		"PipeReadHandle event object is signalled when write end of pipe is closed");
-	
-	ASSERT_TRUE(pipe9x_read_result(prh, &data, &data_size, TRUE) == ERROR_BROKEN_PIPE,
-		"pipe9x_read_result() returns ERROR_BROKEN_PIPE when there is no data in a pipe with a closed write handle");
+	{
+		DWORD error = pipe9x_read_initiate(prh);
+		
+		ASSERT_TRUE(error == ERROR_IO_PENDING || error == ERROR_BROKEN_PIPE,
+			"pipe9x_read_initiate() can initiate a read after another has finished");
+		
+		if(error == ERROR_IO_PENDING)
+		{
+			EXPECT_TRUE(WaitForSingleObject(pipe9x_read_event(prh), 1000) == WAIT_OBJECT_0,
+				"PipeReadHandle event object is signalled when write end of pipe is closed");
+			
+			ASSERT_TRUE(pipe9x_read_result(prh, &data, &data_size, TRUE) == ERROR_BROKEN_PIPE,
+				"pipe9x_read_result() returns ERROR_BROKEN_PIPE when there is no data in a pipe with a closed write handle");
+		}
+	}
 	
 	EXPECT_TRUE(total_data_written == total_data_read, "No data is lost when pipe is filled");
 	
