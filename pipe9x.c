@@ -39,7 +39,8 @@
 struct PipeData
 {
 	HANDLE pipe;
-	unsigned char rw_buf[PIPE_READ_SIZE];
+	unsigned char *rw_buf;
+	size_t rw_buf_size;
 	OVERLAPPED overlapped;
 	BOOL pending;
 	
@@ -59,7 +60,13 @@ struct _PipeWriteHandle
 	struct PipeData data;
 };
 
-DWORD pipe9x_create(PipeReadHandle *prh_out, LPSECURITY_ATTRIBUTES pr_security, PipeWriteHandle *pwh_out, LPSECURITY_ATTRIBUTES pw_security)
+DWORD pipe9x_create(
+	PipeReadHandle *prh_out,
+	size_t read_size,
+	LPSECURITY_ATTRIBUTES read_security,
+	PipeWriteHandle *pwh_out,
+	size_t write_size,
+	LPSECURITY_ATTRIBUTES write_security)
 {
 	*prh_out = NULL;
 	*pwh_out = NULL;
@@ -76,16 +83,28 @@ DWORD pipe9x_create(PipeReadHandle *prh_out, LPSECURITY_ATTRIBUTES pr_security, 
 	}
 	
 	prh->data.pipe = INVALID_HANDLE_VALUE;
+	prh->data.rw_buf = malloc(read_size);
+	prh->data.rw_buf_size = read_size;
 	prh->data.overlapped.hEvent = NULL;
 	prh->data.pending = FALSE;
 	prh->data.use_thread_fallback = FALSE;
 	prh->data.io_thread = NULL;
 	
 	pwh->data.pipe = INVALID_HANDLE_VALUE;
+	pwh->data.rw_buf = malloc(read_size);
+	pwh->data.rw_buf_size = read_size;
 	pwh->data.overlapped.hEvent = NULL;
 	pwh->data.pending = FALSE;
 	pwh->data.use_thread_fallback = FALSE;
 	pwh->data.io_thread = NULL;
+	
+	if(prh->data.rw_buf == NULL || pwh->data.rw_buf == NULL)
+	{
+		pipe9x_write_close(pwh);
+		pipe9x_read_close(prh);
+		
+		return ERROR_OUTOFMEMORY;
+	}
 	
 	/* Create event objects used to signal overlapped I/O completion. */
 	
@@ -137,10 +156,10 @@ DWORD pipe9x_create(PipeReadHandle *prh_out, LPSECURITY_ATTRIBUTES pr_security, 
 			(PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED),       /* dwOpenMode */
 			(PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT),  /* dwPipeMode */
 			1,                                                  /* nMaxInstances */
-			PIPE_READ_SIZE,                                     /* nOutBufferSize */
-			PIPE_READ_SIZE,                                     /* nInBufferSize */
+			read_size,                                          /* nOutBufferSize */
+			read_size,                                          /* nInBufferSize */
 			0,                                                  /* nDefaultTimeOut */
-			pr_security);                                       /* lpSecurityAttributes */
+			read_security);                                     /* lpSecurityAttributes */
 		
 		if(prh->data.pipe == INVALID_HANDLE_VALUE)
 		{
@@ -160,7 +179,7 @@ DWORD pipe9x_create(PipeReadHandle *prh_out, LPSECURITY_ATTRIBUTES pr_security, 
 				 * Wheeee.
 				*/
 				
-				if(!CreatePipe(&(prh->data.pipe), &(pwh->data.pipe), NULL, PIPE_READ_SIZE))
+				if(!CreatePipe(&(prh->data.pipe), &(pwh->data.pipe), NULL, read_size))
 				{
 					error = GetLastError();
 					
@@ -203,7 +222,7 @@ DWORD pipe9x_create(PipeReadHandle *prh_out, LPSECURITY_ATTRIBUTES pr_security, 
 		pipename,              /* lpFileName */
 		GENERIC_WRITE,         /* dwDesiredAccess */
 		0,                     /* dwShareMode */
-		pw_security,           /* lpSecurityAttributes */
+		write_security,        /* lpSecurityAttributes */
 		OPEN_EXISTING,         /* dwCreationDisposition */
 		FILE_FLAG_OVERLAPPED,  /* dwFlagsAndAttributes */
 		NULL);                 /* hTemplateFile */
@@ -287,7 +306,7 @@ static DWORD WINAPI _pipe9x_read_thread(LPVOID lpParameter)
 	if(ReadFile(
 		prh->data.pipe,
 		prh->data.rw_buf,
-		PIPE_READ_SIZE,
+		prh->data.rw_buf_size,
 		&(prh->data.bytes_transferred),
 		NULL))
 	{
@@ -333,7 +352,7 @@ DWORD pipe9x_read_initiate(PipeReadHandle prh)
 		if(ReadFile(
 			prh->data.pipe,
 			prh->data.rw_buf,
-			PIPE_READ_SIZE,
+			prh->data.rw_buf_size,
 			&(prh->data.bytes_transferred),
 			&(prh->data.overlapped)))
 		{

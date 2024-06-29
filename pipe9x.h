@@ -33,12 +33,16 @@
 
 #include <windows.h>
 
-#define PIPE_READ_SIZE 32768
-
 typedef struct _PipeWriteHandle *PipeWriteHandle;
 typedef struct _PipeReadHandle *PipeReadHandle;
 
-DWORD pipe9x_create(PipeReadHandle *prh_out, LPSECURITY_ATTRIBUTES pr_security, PipeWriteHandle *pwh_out, LPSECURITY_ATTRIBUTES pw_security);
+DWORD pipe9x_create(
+	PipeReadHandle *prh_out,
+	size_t read_size,
+	LPSECURITY_ATTRIBUTES read_security,
+	PipeWriteHandle *pwh_out,
+	size_t write_size,
+	LPSECURITY_ATTRIBUTES write_security);
 
 void pipe9x_read_close(PipeReadHandle prh);
 
