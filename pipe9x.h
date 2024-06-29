@@ -38,7 +38,7 @@
 typedef struct _PipeWriteHandle *PipeWriteHandle;
 typedef struct _PipeReadHandle *PipeReadHandle;
 
-DWORD pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out);
+DWORD pipe9x_create(PipeReadHandle *prh_out, LPSECURITY_ATTRIBUTES pr_security, PipeWriteHandle *pwh_out, LPSECURITY_ATTRIBUTES pw_security);
 
 void pipe9x_read_close(PipeReadHandle prh);
 

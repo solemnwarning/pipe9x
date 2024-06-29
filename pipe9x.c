@@ -59,7 +59,7 @@ struct _PipeWriteHandle
 	struct PipeData data;
 };
 
-DWORD pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out)
+DWORD pipe9x_create(PipeReadHandle *prh_out, LPSECURITY_ATTRIBUTES pr_security, PipeWriteHandle *pwh_out, LPSECURITY_ATTRIBUTES pw_security)
 {
 	*prh_out = NULL;
 	*pwh_out = NULL;
@@ -133,14 +133,14 @@ DWORD pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out)
 		pipename[pnlen] = '\0';
 		
 		prh->data.pipe = CreateNamedPipe(
-			pipename,
-			(PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED),
-			(PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT),
-			1,
-			PIPE_READ_SIZE,
-			PIPE_READ_SIZE,
-			0,
-			NULL);
+			pipename,                                           /* lpName */
+			(PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED),       /* dwOpenMode */
+			(PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT),  /* dwPipeMode */
+			1,                                                  /* nMaxInstances */
+			PIPE_READ_SIZE,                                     /* nOutBufferSize */
+			PIPE_READ_SIZE,                                     /* nInBufferSize */
+			0,                                                  /* nDefaultTimeOut */
+			pr_security);                                       /* lpSecurityAttributes */
 		
 		if(prh->data.pipe == INVALID_HANDLE_VALUE)
 		{
@@ -200,13 +200,13 @@ DWORD pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out)
 	/* Make a connection to the pipe to serve as the write end. */
 	
 	pwh->data.pipe = CreateFile(
-		pipename,
-		GENERIC_WRITE,
-		0,
-		NULL,
-		OPEN_EXISTING,
-		FILE_FLAG_OVERLAPPED,
-		NULL);
+		pipename,              /* lpFileName */
+		GENERIC_WRITE,         /* dwDesiredAccess */
+		0,                     /* dwShareMode */
+		pw_security,           /* lpSecurityAttributes */
+		OPEN_EXISTING,         /* dwCreationDisposition */
+		FILE_FLAG_OVERLAPPED,  /* dwFlagsAndAttributes */
+		NULL);                 /* hTemplateFile */
 	
 	if(pwh->data.pipe == INVALID_HANDLE_VALUE)
 	{
