@@ -108,7 +108,7 @@ DWORD pipe9x_create(
 	
 	/* Create event objects used to signal overlapped I/O completion. */
 	
-	prh->data.overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	prh->data.overlapped.hEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
 	if(prh->data.overlapped.hEvent == NULL)
 	{
 		DWORD error = GetLastError();
@@ -119,7 +119,7 @@ DWORD pipe9x_create(
 		return error;
 	}
 	
-	pwh->data.overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	pwh->data.overlapped.hEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
 	if(pwh->data.overlapped.hEvent == NULL)
 	{
 		DWORD error = GetLastError();
@@ -462,6 +462,157 @@ HANDLE pipe9x_read_event(PipeReadHandle prh)
 {
 	assert(prh != NULL);
 	return prh->data.overlapped.hEvent;
+}
+
+static DWORD WINAPI _pipe9x_write_thread(LPVOID lpParameter)
+{
+	PipeWriteHandle pwh = (PipeWriteHandle)(lpParameter);
+	
+	if(WriteFile(
+		pwh->data.pipe,
+		pwh->data.rw_buf,
+		pwh->data.bytes_transferred,
+		&(pwh->data.bytes_transferred),
+		NULL))
+	{
+		pwh->data.io_result = ERROR_SUCCESS;
+	}
+	else{
+		pwh->data.io_result = GetLastError();
+	}
+	
+	SetEvent(pwh->data.overlapped.hEvent);
+	
+	return 0;
+}
+
+DWORD pipe9x_write_initiate(PipeWriteHandle pwh, const void *data, size_t data_size)
+{
+	assert(pwh != NULL);
+	
+	if(pwh->data.pending)
+	{
+		return ERROR_IO_INCOMPLETE;
+	}
+	
+	if(data_size > pwh->data.rw_buf_size)
+	{
+		return ERROR_FILE_TOO_LARGE;
+	}
+	
+	memcpy(pwh->data.rw_buf, data, data_size);
+	
+	if(pwh->data.use_thread_fallback)
+	{
+		assert(pwh->data.io_thread == NULL);
+		
+		ResetEvent(pwh->data.overlapped.hEvent);
+		
+		pwh->data.bytes_transferred = data_size;
+		
+		DWORD io_thread_id;
+		pwh->data.io_thread = CreateThread(NULL, 0, &_pipe9x_write_thread, pwh, 0, &io_thread_id);
+		
+		if(pwh->data.io_thread == NULL)
+		{
+			return GetLastError();
+		}
+		
+		pwh->data.pending = TRUE;
+		
+		return ERROR_IO_PENDING;
+	}
+	else{
+		if(WriteFile(
+			pwh->data.pipe,
+			pwh->data.rw_buf,
+			data_size,
+			&(pwh->data.bytes_transferred),
+			&(pwh->data.overlapped)))
+		{
+			/* Not sure if this is actually a valid result for overlapped
+			 * operations, but lets assume it is...
+			*/
+			
+			pwh->data.pending = TRUE;
+			return ERROR_IO_PENDING;
+		}
+		else{
+			DWORD error = GetLastError();
+			
+			if(error == ERROR_IO_PENDING)
+			{
+				pwh->data.pending = TRUE;
+				return ERROR_IO_PENDING;
+			}
+			else{
+				return error;
+			}
+		}
+	}
+}
+
+DWORD pipe9x_write_result(PipeWriteHandle pwh, size_t *data_written_out, BOOL wait)
+{
+	assert(pwh != NULL);
+	
+	if(!pwh->data.pending)
+	{
+		return ERROR_INVALID_PARAMETER;
+	}
+	
+	if(pwh->data.use_thread_fallback)
+	{
+		assert(pwh->data.io_thread != NULL);
+		
+		DWORD wait_result = WaitForSingleObject(pwh->data.overlapped.hEvent, (wait ? INFINITE : 0));
+		if(wait_result == WAIT_OBJECT_0)
+		{
+			wait_result = WaitForSingleObject(pwh->data.io_thread, INFINITE);
+			assert(wait_result == WAIT_OBJECT_0);
+			
+			pwh->data.pending = FALSE;
+			
+			CloseHandle(pwh->data.io_thread);
+			pwh->data.io_thread = NULL;
+			
+			if(pwh->data.io_result == ERROR_SUCCESS)
+			{
+				*data_written_out = pwh->data.bytes_transferred;
+			}
+			
+			return pwh->data.io_result;
+		}
+		else if(wait_result == WAIT_TIMEOUT)
+		{
+			return ERROR_IO_INCOMPLETE;
+		}
+		else{
+			/* WaitForSingleObject() shouldn't fail here... */
+			abort();
+		}
+	}
+	
+	DWORD bytes_transferred;
+	if(GetOverlappedResult(pwh->data.pipe, &(pwh->data.overlapped), &bytes_transferred, wait))
+	{
+		pwh->data.pending = FALSE;
+		
+		*data_written_out = bytes_transferred;
+		
+		return ERROR_SUCCESS;
+	}
+	else{
+		DWORD error = GetLastError();
+		
+		/* Clear the pending flag if the operation has failed. */
+		if(error != ERROR_IO_INCOMPLETE)
+		{
+			pwh->data.pending = FALSE;
+		}
+		
+		return error;
+	}
 }
 
 void pipe9x_write_close(PipeWriteHandle pwh)

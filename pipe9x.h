@@ -160,6 +160,52 @@ HANDLE pipe9x_read_event(PipeReadHandle prh);
 void pipe9x_write_close(PipeWriteHandle pwh);
 
 /**
+ * @brief Start a write in the background.
+ *
+ * @param pwh        PipeWriteHandle to write to.
+ * @param data       Pointer to data buffer.
+ * @param data_size  Size of data buffer.
+ *
+ * This function will initiate an asynchronous write to the pipe from the
+ * internal buffer of the PipeWriteHandle object. The provided data is copied
+ * into the internal buffer before the function returns.
+ *
+ * On success, this function returns ERROR_IO_PENDING (for consistensy with
+ * Win32 API functions) and completion can be polled using the
+ * pipe9x_write_result() function or waited on using the event object returned
+ * by pipe9x_write_event().
+ *
+ * Only one write operation can be pending at a time, attempting to start a
+ * second write before the first one is completed using pipe9x_write_result()
+ * will return ERROR_IO_INCOMPLETE.
+ *
+ * On Windows NT, this function uses overlapped I/O, on Windows 9x, a blocking
+ * write is performed in a background thread instead.
+*/
+DWORD pipe9x_write_initiate(PipeWriteHandle prh, const void *data, size_t data_size);
+
+/**
+ * @brief Get the result from a write operation.
+ *
+ * @param prw               PipeWriteHandle object to check status of.
+ * @param data_written_out  Pointer to receive number of bytes written (on success).
+ * @param wait              Whether to wait for completion before returning.
+ *
+ * This function gets the result of a write operation previous started using
+ * the pipe9x_write_initiate() function.
+ *
+ * If the write completed successfully, ERROR_SUCCESS is returned and
+ * *data_written_out is initialised with the number of bytes successfully
+ * written to the pipe.
+ *
+ * If the write is still in progress and wait is FALSE, ERROR_IO_INCOMPLETE
+ * will be returned.
+ *
+ * If any other error occurs, the relevant Win32 error code is returned.
+*/
+DWORD pipe9x_write_result(PipeWriteHandle pwh, size_t *data_written_out, BOOL wait);
+
+/**
  * @brief Check if a write operation is pending.
  *
  * This function checks if a write operation is pending. It will return true
