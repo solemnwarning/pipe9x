@@ -286,6 +286,9 @@ static void _pipe9x_cleanup(struct PipeData *pd)
 		CloseHandle(pd->overlapped.hEvent);
 		pd->overlapped.hEvent = NULL;
 	}
+	
+	free(pd->rw_buf);
+	pd->rw_buf = NULL;
 }
 
 void pipe9x_read_close(PipeReadHandle prh)
