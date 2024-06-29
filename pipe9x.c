@@ -327,7 +327,7 @@ DWORD pipe9x_read_initiate(PipeReadHandle prh)
 	
 	if(prh->data.pending)
 	{
-		return ERROR_IO_PENDING;
+		return ERROR_IO_INCOMPLETE;
 	}
 	
 	if(prh->data.use_thread_fallback)
