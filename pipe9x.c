@@ -41,9 +41,9 @@ struct PipeData
 	HANDLE pipe;
 	unsigned char rw_buf[PIPE_READ_SIZE];
 	OVERLAPPED overlapped;
-	bool pending;
+	BOOL pending;
 	
-	bool use_thread_fallback;
+	BOOL use_thread_fallback;
 	HANDLE io_thread;
 	DWORD bytes_transferred;
 	DWORD io_result;
@@ -59,7 +59,7 @@ struct _PipeWriteHandle
 	struct PipeData data;
 };
 
-bool pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out)
+DWORD pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out)
 {
 	*prh_out = NULL;
 	*pwh_out = NULL;
@@ -72,20 +72,19 @@ bool pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out)
 		free(pwh);
 		free(prh);
 		
-		SetLastError(ERROR_OUTOFMEMORY);
-		return false;
+		return ERROR_OUTOFMEMORY;
 	}
 	
 	prh->data.pipe = INVALID_HANDLE_VALUE;
 	prh->data.overlapped.hEvent = NULL;
-	prh->data.pending = false;
-	prh->data.use_thread_fallback = false;
+	prh->data.pending = FALSE;
+	prh->data.use_thread_fallback = FALSE;
 	prh->data.io_thread = NULL;
 	
 	pwh->data.pipe = INVALID_HANDLE_VALUE;
 	pwh->data.overlapped.hEvent = NULL;
-	pwh->data.pending = false;
-	pwh->data.use_thread_fallback = false;
+	pwh->data.pending = FALSE;
+	pwh->data.use_thread_fallback = FALSE;
 	pwh->data.io_thread = NULL;
 	
 	/* Create event objects used to signal overlapped I/O completion. */
@@ -98,8 +97,7 @@ bool pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out)
 		pipe9x_write_close(pwh);
 		pipe9x_read_close(prh);
 		
-		SetLastError(error);
-		return false;
+		return error;
 	}
 	
 	pwh->data.overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -110,8 +108,7 @@ bool pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out)
 		pipe9x_write_close(pwh);
 		pipe9x_read_close(prh);
 		
-		SetLastError(error);
-		return false;
+		return error;
 	}
 	
 	/* Create named pipe to serve as the read end of the pipe.
@@ -170,24 +167,22 @@ bool pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out)
 					pipe9x_write_close(pwh);
 					pipe9x_read_close(prh);
 					
-					SetLastError(error);
-					return true;
+					return error;
 				}
 				
-				prh->data.use_thread_fallback = true;
-				pwh->data.use_thread_fallback = true;
+				prh->data.use_thread_fallback = TRUE;
+				pwh->data.use_thread_fallback = TRUE;
 				
 				*prh_out = prh;
 				*pwh_out = pwh;
 				
-				return true;
+				return ERROR_SUCCESS;
 			}
 			else{
 				pipe9x_write_close(pwh);
 				pipe9x_read_close(prh);
 				
-				SetLastError(error);
-				return false;
+				return error;
 			}
 		}
 	}
@@ -199,8 +194,7 @@ bool pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out)
 		pipe9x_write_close(pwh);
 		pipe9x_read_close(prh);
 		
-		SetLastError(error);
-		return false;
+		return error;
 	}
 	
 	/* Make a connection to the pipe to serve as the write end. */
@@ -221,8 +215,7 @@ bool pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out)
 		pipe9x_write_close(pwh);
 		pipe9x_read_close(prh);
 		
-		SetLastError(error);
-		return false;
+		return error;
 	}
 	
 	/* Complete the connection on the read end. */
@@ -235,14 +228,13 @@ bool pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out)
 		pipe9x_write_close(pwh);
 		pipe9x_read_close(prh);
 		
-		SetLastError(error);
-		return false;
+		return error;
 	}
 	
 	*prh_out = prh;
 	*pwh_out = pwh;
 	
-	return true;
+	return ERROR_SUCCESS;
 }
 
 static void _pipe9x_cleanup(struct PipeData *pd)
@@ -333,7 +325,7 @@ DWORD pipe9x_read_initiate(PipeReadHandle prh)
 			return GetLastError();
 		}
 		
-		prh->data.pending = true;
+		prh->data.pending = TRUE;
 		
 		return ERROR_IO_PENDING;
 	}
@@ -349,7 +341,7 @@ DWORD pipe9x_read_initiate(PipeReadHandle prh)
 			 * operations, but lets assume it is...
 			*/
 			
-			prh->data.pending = true;
+			prh->data.pending = TRUE;
 			return ERROR_IO_PENDING;
 		}
 		else{
@@ -357,7 +349,7 @@ DWORD pipe9x_read_initiate(PipeReadHandle prh)
 			
 			if(error == ERROR_IO_PENDING)
 			{
-				prh->data.pending = true;
+				prh->data.pending = TRUE;
 				return ERROR_IO_PENDING;
 			}
 			else{
@@ -367,7 +359,7 @@ DWORD pipe9x_read_initiate(PipeReadHandle prh)
 	}
 }
 
-DWORD pipe9x_read_result(PipeReadHandle prh, void **data_out, size_t *data_size_out, bool wait)
+DWORD pipe9x_read_result(PipeReadHandle prh, void **data_out, size_t *data_size_out, BOOL wait)
 {
 	assert(prh != NULL);
 	
@@ -386,7 +378,7 @@ DWORD pipe9x_read_result(PipeReadHandle prh, void **data_out, size_t *data_size_
 			wait_result = WaitForSingleObject(prh->data.io_thread, INFINITE);
 			assert(wait_result == WAIT_OBJECT_0);
 			
-			prh->data.pending = false;
+			prh->data.pending = FALSE;
 			
 			CloseHandle(prh->data.io_thread);
 			prh->data.io_thread = NULL;
@@ -412,7 +404,7 @@ DWORD pipe9x_read_result(PipeReadHandle prh, void **data_out, size_t *data_size_
 	DWORD bytes_transferred;
 	if(GetOverlappedResult(prh->data.pipe, &(prh->data.overlapped), &bytes_transferred, wait))
 	{
-		prh->data.pending = false;
+		prh->data.pending = FALSE;
 		
 		*data_out = prh->data.rw_buf;
 		*data_size_out = bytes_transferred;
@@ -425,14 +417,14 @@ DWORD pipe9x_read_result(PipeReadHandle prh, void **data_out, size_t *data_size_
 		/* Clear the pending flag if the operation has failed. */
 		if(error != ERROR_IO_INCOMPLETE)
 		{
-			prh->data.pending = false;
+			prh->data.pending = FALSE;
 		}
 		
 		return error;
 	}
 }
 
-bool pipe9x_read_pending(PipeReadHandle prh)
+BOOL pipe9x_read_pending(PipeReadHandle prh)
 {
 	assert(prh != NULL);
 	return prh->data.pending;
@@ -461,7 +453,7 @@ void pipe9x_write_close(PipeWriteHandle pwh)
 	free(pwh);
 }
 
-bool pipe9x_write_pending(PipeWriteHandle pwh)
+BOOL pipe9x_write_pending(PipeWriteHandle pwh)
 {
 	assert(pwh != NULL);
 	return pwh->data.pending;

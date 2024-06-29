@@ -32,22 +32,21 @@
 #define PIPE9X_H
 
 #include <windows.h>
-#include <stdbool.h>
 
 #define PIPE_READ_SIZE 32768
 
 typedef struct _PipeWriteHandle *PipeWriteHandle;
 typedef struct _PipeReadHandle *PipeReadHandle;
 
-bool pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out);
+DWORD pipe9x_create(PipeReadHandle *prh_out, PipeWriteHandle *pwh_out);
 
 void pipe9x_read_close(PipeReadHandle prh);
 
 DWORD pipe9x_read_initiate(PipeReadHandle prh);
 
-DWORD pipe9x_read_result(PipeReadHandle prh, void **data_out, size_t *data_size_out, bool wait);
+DWORD pipe9x_read_result(PipeReadHandle prh, void **data_out, size_t *data_size_out, BOOL wait);
 
-bool pipe9x_read_pending(PipeReadHandle prh);
+BOOL pipe9x_read_pending(PipeReadHandle prh);
 
 HANDLE pipe9x_read_pipe(PipeReadHandle prh);
 
@@ -55,7 +54,7 @@ HANDLE pipe9x_read_event(PipeReadHandle prh);
 
 void pipe9x_write_close(PipeWriteHandle pwh);
 
-bool pipe9x_write_pending(PipeWriteHandle pwh);
+BOOL pipe9x_write_pending(PipeWriteHandle pwh);
 
 HANDLE pipe9x_write_pipe(PipeWriteHandle pwh);
 
