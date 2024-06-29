@@ -380,9 +380,12 @@ DWORD pipe9x_read_result(PipeReadHandle prh, void **data_out, size_t *data_size_
 	{
 		assert(prh->data.io_thread != NULL);
 		
-		DWORD wait_result = WaitForSingleObject(prh->data.io_thread, (wait ? INFINITE : 0));
+		DWORD wait_result = WaitForSingleObject(prh->data.overlapped.hEvent, (wait ? INFINITE : 0));
 		if(wait_result == WAIT_OBJECT_0)
 		{
+			wait_result = WaitForSingleObject(prh->data.io_thread, INFINITE);
+			assert(wait_result == WAIT_OBJECT_0);
+			
 			prh->data.pending = false;
 			
 			CloseHandle(prh->data.io_thread);
