@@ -61,7 +61,7 @@ int main()
 	PipeReadHandle prh;
 	PipeWriteHandle pwh;
 	
-	ASSERT_TRUE(pipe9x_create(&prh, (128 * 1024), NULL, &pwh, (128 * 1024), NULL) == ERROR_SUCCESS,
+	ASSERT_TRUE(pipe9x_create(&prh, (128 * 1024), FALSE, &pwh, (128 * 1024), FALSE) == ERROR_SUCCESS,
 		"pipe9x_create() returns ERROR_SUCCESS");
 	
 	ASSERT_TRUE(prh != NULL, "pipe9x_create() initialises a PipeReadHandle");

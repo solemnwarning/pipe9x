@@ -63,10 +63,10 @@ struct _PipeWriteHandle
 DWORD pipe9x_create(
 	PipeReadHandle *prh_out,
 	size_t read_size,
-	LPSECURITY_ATTRIBUTES read_security,
+	BOOL read_inherit,
 	PipeWriteHandle *pwh_out,
 	size_t write_size,
-	LPSECURITY_ATTRIBUTES write_security)
+	BOOL write_inherit)
 {
 	*prh_out = NULL;
 	*pwh_out = NULL;
@@ -151,6 +151,8 @@ DWORD pipe9x_create(
 		
 		pipename[pnlen] = '\0';
 		
+		SECURITY_ATTRIBUTES r_secattrs = { sizeof(SECURITY_ATTRIBUTES), NULL, read_inherit };
+		
 		prh->data.pipe = CreateNamedPipe(
 			pipename,                                           /* lpName */
 			(PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED),       /* dwOpenMode */
@@ -159,7 +161,7 @@ DWORD pipe9x_create(
 			read_size,                                          /* nOutBufferSize */
 			read_size,                                          /* nInBufferSize */
 			0,                                                  /* nDefaultTimeOut */
-			read_security);                                     /* lpSecurityAttributes */
+			&r_secattrs);                                       /* lpSecurityAttributes */
 		
 		if(prh->data.pipe == INVALID_HANDLE_VALUE)
 		{
@@ -221,11 +223,13 @@ DWORD pipe9x_create(
 	
 	/* Make a connection to the pipe to serve as the write end. */
 	
+	SECURITY_ATTRIBUTES w_secattrs = { sizeof(SECURITY_ATTRIBUTES), NULL, write_inherit };
+	
 	pwh->data.pipe = CreateFile(
 		pipename,              /* lpFileName */
 		GENERIC_WRITE,         /* dwDesiredAccess */
 		0,                     /* dwShareMode */
-		write_security,        /* lpSecurityAttributes */
+		&w_secattrs,           /* lpSecurityAttributes */
 		OPEN_EXISTING,         /* dwCreationDisposition */
 		FILE_FLAG_OVERLAPPED,  /* dwFlagsAndAttributes */
 		NULL);                 /* hTemplateFile */

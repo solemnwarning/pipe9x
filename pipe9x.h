@@ -39,12 +39,12 @@ typedef struct _PipeReadHandle *PipeReadHandle;
 /**
  * @brief Create a pair of connected pipe handles.
  *
- * @param prh_out         Pointer to PipeReadHandle to receive read handle.
- * @param read_size       Size of pipe read buffer.
- * @param read_security   SECURITY_ATTRIBUTES for pipe read handle (optional, ignored on non-NT).
- * @param pwh_out         Pointer to PipeWriteHandle to receive write handle.
- * @param write_size      Size of pipe write buffer.
- * @param write_security  SECURITY_ATTRIBUTES for pipe write handle (optional, ignored on non-NT).
+ * @param prh_out        Pointer to PipeReadHandle to receive read handle.
+ * @param read_size      Size of pipe read buffer.
+ * @param read_inherit   Whether the pipe read handle is inherited by new processes (ignored on 9x).
+ * @param pwh_out        Pointer to PipeWriteHandle to receive write handle.
+ * @param write_size     Size of pipe write buffer.
+ * @param write_inherit  Whether the pipe write handle is inherited by new processes (ignored on 9x).
  *
  * @return ERROR_SUCCESS, or another win32 error code.
  *
@@ -59,17 +59,14 @@ typedef struct _PipeReadHandle *PipeReadHandle;
  *
  * The buffer size parameters specify the size of the internal read/write
  * buffers to allocate and set the upper size limit for read/write operations.
- *
- * The optional SECURITY_ATTRIBUTES parameters allow specifying whether either
- * of the buffer handles can be inherited by child processes.
 */
 DWORD pipe9x_create(
 	PipeReadHandle *prh_out,
 	size_t read_size,
-	LPSECURITY_ATTRIBUTES read_security,
+	BOOL read_inherit,
 	PipeWriteHandle *pwh_out,
 	size_t write_size,
-	LPSECURITY_ATTRIBUTES write_security);
+	BOOL write_inherit);
 
 /**
  * @brief Closes the read end of a pipe created by pipe9x_create().
