@@ -36,6 +36,9 @@
 
 #include "pipe9x.h"
 
+/**
+ * @private
+*/
 struct PipeData
 {
 	HANDLE pipe;
@@ -50,11 +53,17 @@ struct PipeData
 	DWORD io_result;
 };
 
+/**
+ * @private
+*/
 struct _PipeReadHandle
 {
 	struct PipeData data;
 };
 
+/**
+ * @private
+*/
 struct _PipeWriteHandle
 {
 	struct PipeData data;

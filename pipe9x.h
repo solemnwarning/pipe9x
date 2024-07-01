@@ -28,10 +28,18 @@
  * POSSIBILITY OF SUCH DAMAGE.
 */
 
+/**
+ * @file pipe9x.h
+*/
+
 #ifndef PIPE9X_H
 #define PIPE9X_H
 
 #include <windows.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct _PipeWriteHandle *PipeWriteHandle;
 typedef struct _PipeReadHandle *PipeReadHandle;
@@ -232,5 +240,9 @@ HANDLE pipe9x_write_pipe(PipeWriteHandle pwh);
  * otherwise altered.
 */
 HANDLE pipe9x_write_event(PipeWriteHandle prh);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !PIPE9X_H */
