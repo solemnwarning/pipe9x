@@ -49,10 +49,10 @@ typedef struct _PipeReadHandle *PipeReadHandle;
  *
  * @param prh_out        Pointer to PipeReadHandle to receive read handle.
  * @param read_size      Size of pipe read buffer.
- * @param read_inherit   Whether the pipe read handle is inherited by new processes (ignored on 9x).
+ * @param read_inherit   Whether the pipe read handle is inherited by new processes.
  * @param pwh_out        Pointer to PipeWriteHandle to receive write handle.
  * @param write_size     Size of pipe write buffer.
- * @param write_inherit  Whether the pipe write handle is inherited by new processes (ignored on 9x).
+ * @param write_inherit  Whether the pipe write handle is inherited by new processes.
  *
  * @return ERROR_SUCCESS, or another win32 error code.
  *

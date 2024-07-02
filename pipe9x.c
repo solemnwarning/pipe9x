@@ -190,7 +190,7 @@ DWORD pipe9x_create(
 				 * Wheeee.
 				*/
 				
-				if(!CreatePipe(&(prh->data.pipe), &(pwh->data.pipe), NULL, read_size))
+				if(!CreatePipe(&(prh->data.pipe), &(pwh->data.pipe), &r_secattrs, read_size))
 				{
 					error = GetLastError();
 					
@@ -198,6 +198,31 @@ DWORD pipe9x_create(
 					pipe9x_read_close(prh);
 					
 					return error;
+				}
+				
+				if(read_inherit != write_inherit)
+				{
+					HANDLE new_write_handle;
+					
+					if(!DuplicateHandle(
+						GetCurrentProcess(),
+						pwh->data.pipe,
+						GetCurrentProcess(),
+						&new_write_handle,
+						0,
+						write_inherit,
+						DUPLICATE_SAME_ACCESS))
+					{
+						error = GetLastError();
+						
+						pipe9x_write_close(pwh);
+						pipe9x_read_close(prh);
+						
+						return error;
+					}
+					
+					CloseHandle(pwh->data.pipe);
+					pwh->data.pipe = new_write_handle;
 				}
 				
 				prh->data.use_thread_fallback = TRUE;
